@@ -68,8 +68,7 @@ def main():
     args = ap.parse_args()
 
     text = args.text or (
-        "✅ *SEC Filing Alerts* bot connected — delivery via bot token is live "
-        "(posting as this app, no “via Claude” tag)." if args.test else None)
+        "🧪 SEC Filing Alerts — connectivity test, please ignore." if args.test else None)
     if not text:
         raise SystemExit("Provide --text or --test.")
 
