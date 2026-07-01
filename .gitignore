@@ -1,0 +1,16 @@
+# Secrets — never commit
+.env
+*.token
+
+# Local state / runtime
+seen.json
+run.log
+*.log
+.run.lock
+__pycache__/
+*.pyc
+.venv/
+
+# Local / editor
+.claude/
+.DS_Store
