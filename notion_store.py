@@ -88,7 +88,7 @@ def issuer_history():
         for row in res.get("results", []):
             p = row["properties"]
             cik = "".join(t.get("plain_text", "") for t in p.get("CIK", {}).get("rich_text", []))
-            if not cik:
+            if not cik or set(cik) == {"0"}:  # empty or all-zeros = no identity; never bucket these
                 continue
             name = "".join(t.get("plain_text", "") for t in p.get("Issuer", {}).get("rich_text", []))
             sig = (p.get("Signal", {}).get("select") or {}).get("name")
@@ -102,13 +102,35 @@ def issuer_history():
     return hist
 
 
-def query_filings(assets=None, since=None, limit=100):
+def known_sponsors():
+    """Distinct non-empty Sponsor values across the record (for Q&A sponsor detection)."""
+    def rt(p, k):
+        return "".join(t.get("plain_text", "") for t in p.get(k, {}).get("rich_text", []))
+    seen, cursor = set(), None
+    while True:
+        body = {"page_size": 100}
+        if cursor:
+            body["start_cursor"] = cursor
+        res = _req("POST", f"/databases/{DB_ID}/query", body)
+        for row in res.get("results", []):
+            s = rt(row["properties"], "Sponsor").strip()
+            if s:
+                seen.add(s)
+        if not res.get("has_more"):
+            break
+        cursor = res["next_cursor"]
+    return sorted(seen)
+
+
+def query_filings(assets=None, since=None, sponsor=None, limit=100):
     """Return recorded filings (newest first) for the ask-the-bot Q&A, optionally
-    filtered by asset ticker(s) and/or a 'filed on-or-after' date. Each row is a
-    compact dict: issuer, signal, assets, structure, milestone, filed, summary, link, url."""
+    filtered by asset ticker(s), sponsor, and/or a 'filed on-or-after' date. Each row
+    is a compact dict: issuer, sponsor, product, ticker, signal, assets, ... link, url."""
     conds = []
     if assets:
         conds.append({"or": [{"property": "Assets", "multi_select": {"contains": a}} for a in assets]})
+    if sponsor:
+        conds.append({"property": "Sponsor", "rich_text": {"contains": sponsor}})
     if since:
         conds.append({"property": "Filed", "date": {"on_or_after": since}})
     body = {"page_size": min(limit, 100),
@@ -130,6 +152,10 @@ def query_filings(assets=None, since=None, limit=100):
         rows.append({
             "filing_id": title[0]["plain_text"] if title else "",
             "issuer": rt(p, "Issuer"),
+            "cik": rt(p, "CIK"),
+            "sponsor": rt(p, "Sponsor"),
+            "product": rt(p, "Product"),
+            "ticker": rt(p, "Ticker"),
             "signal": sel(p, "Signal"),
             "assets": [o["name"] for o in p.get("Assets", {}).get("multi_select", [])],
             "structure": sel(p, "Structure"),
@@ -167,7 +193,8 @@ def add_filing(r):
         "Link": {"url": r.get("link") or None},
         "CIK": {"rich_text": [{"text": {"content": r.get("cik", "")}}]},
     }
-    for col, key in [("Sponsor fee", "sponsor_fee"), ("Staking fee", "staking_fee"),
+    for col, key in [("Sponsor", "sponsor"), ("Product", "product"), ("Ticker", "ticker"),
+                     ("Sponsor fee", "sponsor_fee"), ("Staking fee", "staking_fee"),
                      ("Staking provider", "staking_provider"), ("Custodian", "custodian"),
                      ("Listing exchange", "listing_exchange"), ("% staked", "pct_staked")]:
         val = r.get(key) or ""

@@ -47,6 +47,10 @@ Rules:
 - `summary`: one sentence a analyst can act on (what the filing is + why it matters).
 - Use the HISTORY hint to distinguish "New" (unseen) from "adding" (seen-before, previously non-staking) from "routine" (seen-before, already staking).
 - `assets`: crypto tickers involved (e.g. ETH, SOL, BNB, HYPE); [] if none/basket-wide (use "Multi-asset" for broad baskets).
+- Split the product identity into its parts:
+  · `sponsor`: the issuer/brand behind the product (e.g. '21Shares', 'Grayscale', 'VanEck', 'Bitwise', 'Morgan Stanley'). For a 19b-4 exchange filing this is the fund's sponsor named in the rule change, NOT the exchange. For a crypto treasury/operating company, use the company name.
+  · `product`: the product name WITHOUT the sponsor prefix (e.g. 'Polkadot ETF', 'Solana Staking ETF', 'Ethereum Trust'). Do not repeat the sponsor here.
+  · `ticker`: the exchange ticker symbol if the document states one (e.g. 'TDOT', 'GSOL'); blank if none is stated yet.
 - ALSO extract these details WHEN the document states them (leave blank, never guess): sponsor/management fee, staking fee or the sponsor's cut of staking rewards, staking provider(s)/validators, custodian(s), listing exchange, and the portion of assets staked. A routine report may not restate them — that's fine, leave blank."""
 
 TOOL = {
@@ -57,6 +61,9 @@ TOOL = {
         "properties": {
             "product_name": {"type": "string",
                              "description": "The ETF/fund/trust this filing concerns (e.g. 'Morgan Stanley Ethereum Trust', 'VanEck JitoSOL ETF'). For a 19b-4 exchange filing this is the fund named in the rule change, NOT the exchange."},
+            "sponsor": {"type": "string", "description": "Issuer/brand behind the product (e.g. '21Shares', 'Grayscale'). For a treasury/operating company, the company name."},
+            "product": {"type": "string", "description": "Product name without the sponsor prefix (e.g. 'Polkadot ETF', 'Solana Staking ETF')."},
+            "ticker": {"type": "string", "description": "Exchange ticker if stated (e.g. 'TDOT'); empty otherwise."},
             "signal": {"type": "string", "enum": SIGNALS},
             "is_staking": {"type": "boolean"},
             "structure": {"type": "string", "enum": STRUCTURES},
@@ -152,6 +159,9 @@ def categorize(f, history=None):
         "filing_id": f["filing_id"],
         "issuer": issuer or f.get("issuer", ""),
         "product_name": v.get("product_name") or issuer or f.get("issuer", ""),
+        "sponsor": v.get("sponsor", ""),
+        "product": v.get("product", ""),
+        "ticker": v.get("ticker", ""),
         "assets": v.get("assets") or [],
         "signal": v["signal"],
         "structure": v.get("structure", "Other"),

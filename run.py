@@ -81,6 +81,7 @@ def main():
     ap.add_argument("--start", help="YYYY-MM-DD (overrides --days)")
     ap.add_argument("--end", help="YYYY-MM-DD (defaults to today)")
     ap.add_argument("--dry-run", action="store_true", help="no Notion writes / no Slack posts")
+    ap.add_argument("--no-post", action="store_true", help="write Notion rows but skip Slack (for backfills)")
     ap.add_argument("--limit", type=int, default=0, help="cap number of new filings processed (0 = all)")
     ap.add_argument("--alerts-only", action="store_true", help="process only signals that alert (skip record-only)")
     ap.add_argument("--rules-only", action="store_true", help="skip the LLM; classify from metadata only")
@@ -134,7 +135,7 @@ def main():
         try:
             page = notion_store.add_filing(rec)   # everything is recorded
             recorded += 1
-            if alert:                              # only high-signal events post
+            if alert and not args.no_post:         # only high-signal events post
                 resp = slack_post.post(CHANNEL, format_alert(rec, page.get("url")),
                                        blocks=format_blocks(rec, page.get("url")))
                 posted += 1

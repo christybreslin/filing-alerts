@@ -164,7 +164,7 @@ def _summary(signal, issuer, milestone, known):
         "ETF adding staking": f"{issuer}: {milestone}. Existing product appears to be ADDING staking{review}.",
         "Approval milestone": f"{issuer}: {milestone}.",
         "Staking ETF — routine update": f"{issuer}: {milestone}. Routine filing for a known staking ETF.",
-        "Not a staking product": f"{issuer}: {milestone}. Not a staking product — out of core scope.",
+        "Not a staking product": f"{issuer}: {milestone}. Does not stake — not a staking product.",
         "Review": (f"{issuer}: {milestone}. Crypto product, staking not stated in the name — "
                    f"needs a document read to tell if it adds staking{review}."),
     }
