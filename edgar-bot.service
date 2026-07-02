@@ -1,0 +1,19 @@
+[Unit]
+Description=EDGAR the Eagle — SEC staking-ETF Q&A bot (Slack Socket Mode)
+Documentation=https://github.com/christybreslin/filing-alerts
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/filing-alerts
+# .env is plain KEY=VALUE (no `export`, no quotes) — systemd reads it directly.
+EnvironmentFile=/opt/filing-alerts/.env
+ExecStart=/opt/filing-alerts/.venv/bin/python -u ask_bot.py
+Restart=on-failure
+RestartSec=5
+# Uncomment to run as a non-root service account that owns /opt/filing-alerts:
+# User=filingalerts
+
+[Install]
+WantedBy=multi-user.target

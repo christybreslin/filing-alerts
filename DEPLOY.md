@@ -72,6 +72,27 @@ down, cron disabled), use a free dead-man's-switch such as healthchecks.io:
 create a check, put its ping URL in `.env` as `HEALTHCHECK_URL`, and it alerts you if the
 expected ping doesn't arrive on schedule. `run.sh` pings on success and `/fail` on failure.
 
+## 7. Q&A bot ("EDGAR the Eagle") as a systemd service
+
+The alert pipeline is cron; the Q&A bot is a **long-running** Slack Socket Mode listener,
+so it runs as a systemd service (restarts on crash / reboot). Needs `slack_bolt`
+(`pip install -r requirements.txt`) and `SLACK_APP_TOKEN` (xapp-…) in `.env`.
+
+The unit file lives in the repo as `edgar-bot.service`. Install it:
+
+```
+cd /opt/filing-alerts && git pull            # get ask_bot.py + edgar-bot.service
+.venv/bin/pip install -r requirements.txt    # slack_bolt
+sudo cp edgar-bot.service /etc/systemd/system/edgar-bot.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now edgar-bot
+systemctl status edgar-bot                   # should be active (running)
+journalctl -u edgar-bot -f                   # live logs; look for "⚡️ Bolt app is running!"
+```
+
+Redeploy after a code change: `git pull && sudo systemctl restart edgar-bot`.
+(If `edgar-bot.service` itself changed: re-`cp` it + `daemon-reload` before restart.)
+
 ## Notes
 - `requirements.txt` pins `anthropic`; everything else is Python stdlib.
 - To change the alert model or window without redeploying, edit `.env` (`CATEGORIZER_MODEL`, `RUN_DAYS`).
