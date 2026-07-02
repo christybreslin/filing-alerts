@@ -46,7 +46,8 @@ Rules:
 - `evidence_quote`: copy the single most decisive sentence/phrase FROM THE PROVIDED TEXT that justifies your call. If nothing in the text is decisive, quote the strongest available and lower confidence.
 - `summary`: one sentence a analyst can act on (what the filing is + why it matters).
 - Use the HISTORY hint to distinguish "New" (unseen) from "adding" (seen-before, previously non-staking) from "routine" (seen-before, already staking).
-- `assets`: crypto tickers involved (e.g. ETH, SOL, BNB, HYPE); [] if none/basket-wide (use "Multi-asset" for broad baskets)."""
+- `assets`: crypto tickers involved (e.g. ETH, SOL, BNB, HYPE); [] if none/basket-wide (use "Multi-asset" for broad baskets).
+- ALSO extract these details WHEN the document states them (leave blank, never guess): sponsor/management fee, staking fee or the sponsor's cut of staking rewards, staking provider(s)/validators, custodian(s), listing exchange, and the portion of assets staked. A routine report may not restate them — that's fine, leave blank."""
 
 TOOL = {
     "name": "record_verdict",
@@ -63,6 +64,12 @@ TOOL = {
             "summary": {"type": "string"},
             "evidence_quote": {"type": "string"},
             "confidence": {"type": "string", "enum": ["High", "Medium", "Low"]},
+            "sponsor_fee": {"type": "string", "description": "Annual sponsor/management fee exactly as stated (e.g. '0.19%'). Empty if the document doesn't state it."},
+            "staking_fee": {"type": "string", "description": "Staking fee or the sponsor's cut of staking rewards, if stated (e.g. '7%'). Empty otherwise."},
+            "staking_provider": {"type": "string", "description": "Staking provider(s)/validator(s) named, comma-separated (e.g. 'Coinbase, Figment'). Empty otherwise."},
+            "custodian": {"type": "string", "description": "Crypto custodian(s) named. Empty otherwise."},
+            "listing_exchange": {"type": "string", "description": "Listing exchange if stated (e.g. 'NYSE Arca', 'Nasdaq', 'Cboe BZX'). Empty otherwise."},
+            "pct_staked": {"type": "string", "description": "Portion of assets to be staked if stated (e.g. 'up to 100%'). Empty otherwise."},
         },
         "required": ["product_name", "signal", "is_staking", "structure", "assets", "summary",
                      "evidence_quote", "confidence"],
@@ -156,6 +163,12 @@ def categorize(f, history=None):
         "cik": cik,
         "evidence": v.get("evidence_quote", ""),
         "confidence": v.get("confidence", "Medium"),
+        "sponsor_fee": v.get("sponsor_fee", ""),
+        "staking_fee": v.get("staking_fee", ""),
+        "staking_provider": v.get("staking_provider", ""),
+        "custodian": v.get("custodian", ""),
+        "listing_exchange": v.get("listing_exchange", ""),
+        "pct_staked": v.get("pct_staked", ""),
         "known": cik in clf.CIK_MAP,
     }
 

@@ -102,6 +102,52 @@ def issuer_history():
     return hist
 
 
+def query_filings(assets=None, since=None, limit=100):
+    """Return recorded filings (newest first) for the ask-the-bot Q&A, optionally
+    filtered by asset ticker(s) and/or a 'filed on-or-after' date. Each row is a
+    compact dict: issuer, signal, assets, structure, milestone, filed, summary, link, url."""
+    conds = []
+    if assets:
+        conds.append({"or": [{"property": "Assets", "multi_select": {"contains": a}} for a in assets]})
+    if since:
+        conds.append({"property": "Filed", "date": {"on_or_after": since}})
+    body = {"page_size": min(limit, 100),
+            "sorts": [{"property": "Filed", "direction": "descending"}]}
+    if conds:
+        body["filter"] = {"and": conds} if len(conds) > 1 else conds[0]
+    res = _req("POST", f"/databases/{DB_ID}/query", body)
+
+    def rt(p, k):
+        return "".join(t.get("plain_text", "") for t in p.get(k, {}).get("rich_text", []))
+
+    def sel(p, k):
+        return (p.get(k, {}).get("select") or {}).get("name")
+
+    rows = []
+    for row in res.get("results", []):
+        p = row["properties"]
+        title = p.get("Filing ID", {}).get("title", [])
+        rows.append({
+            "filing_id": title[0]["plain_text"] if title else "",
+            "issuer": rt(p, "Issuer"),
+            "signal": sel(p, "Signal"),
+            "assets": [o["name"] for o in p.get("Assets", {}).get("multi_select", [])],
+            "structure": sel(p, "Structure"),
+            "milestone": rt(p, "Form / Milestone"),
+            "filed": (p.get("Filed", {}).get("date") or {}).get("start"),
+            "summary": rt(p, "Summary"),
+            "sponsor_fee": rt(p, "Sponsor fee"),
+            "staking_fee": rt(p, "Staking fee"),
+            "staking_provider": rt(p, "Staking provider"),
+            "custodian": rt(p, "Custodian"),
+            "listing_exchange": rt(p, "Listing exchange"),
+            "pct_staked": rt(p, "% staked"),
+            "link": p.get("Link", {}).get("url"),
+            "url": row.get("url"),
+        })
+    return rows
+
+
 def add_filing(r):
     """Create one DB row from an enriched record dict."""
     assets = r.get("assets") or []
@@ -121,6 +167,12 @@ def add_filing(r):
         "Link": {"url": r.get("link") or None},
         "CIK": {"rich_text": [{"text": {"content": r.get("cik", "")}}]},
     }
+    for col, key in [("Sponsor fee", "sponsor_fee"), ("Staking fee", "staking_fee"),
+                     ("Staking provider", "staking_provider"), ("Custodian", "custodian"),
+                     ("Listing exchange", "listing_exchange"), ("% staked", "pct_staked")]:
+        val = r.get(key) or ""
+        if val:
+            props[col] = {"rich_text": [{"text": {"content": val[:1900]}}]}
     if r.get("confidence"):
         props["Confidence"] = {"select": {"name": r["confidence"]}}
     return _req("POST", "/pages", {"parent": {"database_id": DB_ID}, "properties": props})
